@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom">
     <icon>/favicon.ico</icon>
-    <rights>© 2026 Kevin Gut</rights>
+    <rights>© 2026 {AUTHOR.NAME}</rights>
     <title>ADHD Ramblings</title>
     <subtitle>A minimal effort blog</subtitle>
     <link href="https://blog.ayra.ch/feed.rss" rel="self" />
@@ -9,8 +9,8 @@
     <id>urn:uuid:75bbd562-35a0-4d82-be13-24fbba535c4c</id>
     <updated>{LASTITEM}</updated>
     <author>
-        <name>ayra.ch</name>
-        <uri>https://blog.ayra.ch/</uri>
+        <name>{AUTHOR.NAME}</name>
+        <uri>{AUTHOR.URL}</uri>
     </author>
     {ENTRIES}
 </feed>
