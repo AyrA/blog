@@ -19,6 +19,7 @@ type MenuItem = {
     description: string,
     date: Date,
     file: string
+    author: AuthorInfo
 };
 
 type RenderResult = {
@@ -39,7 +40,8 @@ type MDParseResult = {
     raw: string,
     title: string,
     description?: string | null,
-    published?: Date | null
+    published?: Date | null,
+    author: AuthorInfo
 };
 
 type GlobalParams = {
@@ -143,9 +145,15 @@ function renderFeed(menuItems: MenuItem[], params: GlobalParams) {
             .replaceAll("{DATE}", htmlEncode(shortIsoDate(item.date)))
             .replaceAll("{DATENUM}", String(Math.floor(item.date.getTime() / 1000)))
             .replaceAll("{TITLE}", htmlEncode(item.title))
-            .replaceAll("{DESC}", htmlEncode(item.description)));
+            .replaceAll("{DESC}", htmlEncode(item.description))
+            .replaceAll("{AUTHOR.NAME}", item.author.name)
+            .replaceAll("{AUTHOR.URL}", item.author.url));
     }
-    return params.templates.feed.replace("{ENTRIES}", entries.join("")).replace("{LASTITEM}", shortIsoDate(menuItems[0].date));
+    return params.templates.feed.
+        replace("{ENTRIES}", entries.join("")).
+        replace("{LASTITEM}", shortIsoDate(menuItems[0].date)).
+        replaceAll("{AUTHOR.NAME}", params.config.rss.author.name).
+        replaceAll("{AUTHOR.URL}", params.config.rss.author.url);
 }
 
 /**
@@ -168,6 +176,8 @@ function renderMenu(menuItems: MenuItem[], params: GlobalParams) {
     ret = params.templates.menu
         .replaceAll("{TITLE}", htmlEncode(params.config.title))
         .replaceAll("{DESC}", htmlEncode(params.config.desc))
+        .replaceAll("{AUTHOR.NAME}", htmlEncode(params.config.rss.author?.name ?? ""))
+        .replaceAll("{AUTHOR.URL}", htmlEncode(params.config.rss.author?.url ?? ""))
         .replace("{LIST}", ret)
         .replace("{FEED}", params.config.rss.enabled ? htmlEncode`<link href="./feed.xml" type="application/atom+xml" rel="alternate" title="${params.config.title}" />` : "");
     return stripComments(ret);
@@ -245,9 +255,12 @@ function renderFiles(files: string[], params: GlobalParams): RenderResult[] {
         const html = highlightCode(md2html.makeHtml(md.raw));
         const content = params.templates.docs
             .replace("{MD}", html) //Add Markdown
-            .replace("{TITLE}", md.title) //Set title
-            .replace("{DATE}", md.published.toISOString().split('T')[0]) //Set date
-            .replace("{DATEFULL}", shortIsoDate(md.published)); //Set date
+            .replaceAll("{TITLE}", htmlEncode(md.title)) //Set title
+            .replaceAll("{DESC}", htmlEncode(md.description ?? "")) //Set description
+            .replaceAll("{AUTHOR.NAME}", htmlEncode(md.author.name)) //Set author name
+            .replaceAll("{AUTHOR.URL}", htmlEncode(md.author.url)) //Set author url
+            .replace("{DATE}", htmlEncode(md.published.toISOString().split('T')[0])) //Set date
+            .replace("{DATEFULL}", htmlEncode(shortIsoDate(md.published))); //Set date
         ret.push({
             fullPath: outFullName,
             htmlCode: stripComments(content),
@@ -255,7 +268,8 @@ function renderFiles(files: string[], params: GlobalParams): RenderResult[] {
                 date: md.published,
                 title: md.title,
                 description: md.description ?? "No description",
-                file: outFileName
+                file: outFileName,
+                author: md.author
             }
         });
     }
@@ -289,12 +303,12 @@ function structurizeMD(md: string, params: GlobalParams): MDParseResult {
         }
         config.title = title[1];
     }
-    config.author ??= params.config.rss.author;
     return {
         raw: md,
         published: config.date === "auto" ? null : new Date(config.date),
         title: config.title,
-        description: config.desc
+        description: config.desc,
+        author: config.author ?? params.config.rss.author
     };
 }
 

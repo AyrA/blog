@@ -1,7 +1,7 @@
 ```json
 {
   "title": "Custom title of document 2",
-  "desc": "Description of document 2",
+  "desc": "Description of document 2 <!-- with some html injection",
   "date": "auto",
   "tags": ["test-2"]
 }

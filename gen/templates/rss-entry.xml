@@ -11,7 +11,7 @@
         </div>
     </content>
     <author>
-        <name>ayra.ch</name>
-        <uri>https://blog.ayra.ch/</uri>
+        <name>{AUTHOR.NAME}</name>
+        <uri>{AUTHOR.URL}</uri>
     </author>
 </entry>
