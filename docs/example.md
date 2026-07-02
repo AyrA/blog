@@ -21,3 +21,47 @@
 # Example blog entry
 
 This document serves as an example blog entry
+
+## Code highlighting
+
+To insert highlighted code sections, use the tripple backtick like so:
+
+    ```c#
+    public static class Program
+    {
+        public static void Main()
+        {
+            Console.WriteLine("Hello, World!");
+        }
+    }
+    ```
+
+Result:
+
+```c#
+public static class Program
+{
+    public static void Main()
+    {
+        Console.WriteLine("Hello, World!");
+    }
+}
+```
+
+The list of supported languages can be obtained from the highlight-js project
+
+## Diagrams
+
+For mermaid diagrams, simply use the "mermaid" language specifier for your code
+
+    ```mermaid
+    flowchart LR
+        Hello --> World
+    ```
+
+Result:
+
+```mermaid
+flowchart LR
+    Hello --> World
+```
