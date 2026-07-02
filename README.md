@@ -2,7 +2,7 @@
 
 A static site generator for markdown files written from scratch.
 
-_I don't recommend you do this because I wrote it solely for my own purposes_
+_I don't recommend you use this because I wrote it solely for my own purposes_
 
 ## Features
 
