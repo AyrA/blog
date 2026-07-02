@@ -1,16 +1,16 @@
 ```json
 {
   //You may skip this property or set it to null in order to use the first h1 level title from the document instead
-  "title": "Custom title",
-  //A description that is a bit longer than the title
-  "desc": "Description",
-  //IDO 8601 date of publication, you can set this to "auto" to use the file modification timestamp instead, but be aware that accidental timestamp edits might reorder menu entries
-  "date": "2026-02-01T01:02:03+02:00",
+  "title": "Custom Title",
+  //A description that is a bit more detailed than the title, or acts as a subtitle
+  "desc": "Example document that demonstrates a few features of this generator",
+  //ISO 8601 date of publication, you can set this to "auto" to use the file modification timestamp instead, but be aware that accidental timestamp edits might reorder menu entries
+  "date": "auto",
   //Information about the author. This entire block is optional, and will be copied from the global config file if absent
   "author": {
     //Display name of the author
-    "name": "Custom author",
-    //URL of the authors website
+    "name": "Your name here",
+    //URL of the authors website, this is not necessarily the url of this blog.
     "url": "https://example.com/"
   },
   //Entry tags. This is currently unused
