@@ -1,4 +1,6 @@
 node_modules
 dist
+docs
+files
 gen/js
 gen/config.json5

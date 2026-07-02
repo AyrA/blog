@@ -2,6 +2,11 @@
 SETLOCAL
 PUSHD "%~dp0"
 
+REM Ensure base directories exist
+IF NOT EXIST docs MD docs
+IF NOT EXIST files MD files
+IF NOT EXIST static MD static
+
 REM Build typescript
 PUSHD gen
 IF NOT EXIST node_modules CALL npm ci
