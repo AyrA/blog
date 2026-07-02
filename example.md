@@ -20,7 +20,8 @@
 
 # Example blog entry
 
-This document serves as an example blog entry
+This document serves as an example blog entry.
+Move it into the docs folder and run the build script.
 
 ## Code highlighting
 
