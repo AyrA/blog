@@ -1,105 +1,32 @@
 "use strict";
 
-type BuildConfig = {
-    title: string,
-    desc: string,
-    url: string,
-    rss: {
-        enabled: boolean,
-        author: AuthorInfo
-    }
-}
-
-type AuthorInfo = {
-    name: string,
-    url: string
-};
-
-type MenuItem = {
-    title: string,
-    description: string,
-    date: Date,
-    file: string
-    author: AuthorInfo
-};
-
-type RenderResult = {
-    htmlCode: string,
-    fullPath: string
-    menuItem: MenuItem
-}
-
-type MDConfig = {
-    title?: string | null,
-    desc?: string | null,
-    date?: string | null,
-    tags?: string[] | null,
-    author?: AuthorInfo | null
-};
-
-type MDParseResult = {
-    raw: string,
-    title: string,
-    description?: string | null,
-    published?: Date | null,
-    author: AuthorInfo
-};
-
-type GlobalParams = {
-    config: BuildConfig,
-    dirs: {
-        source: string,
-        dest: string
-    },
-    templates: {
-        docs: string,
-        menu: string,
-        feed: string,
-        feedEntry: string
-    },
-    outFiles: {
-        menu: string,
-        feed: string
-    }
-};
-
 import fs from "fs";
 import path from "path";
 import showdown from "showdown";
 import hljs from 'highlight.js';
 import json5 from 'json5';
+import regexes from "./regexes";
 
 if (process.argv.length !== 4) {
     console.error("node build.js <source-dir> <out-dir>");
     process.exit(1);
 }
 
-/** Regular expressions used throughout this file */
-const regexes = {
-    /** The config block from a markdown file */
-    configBlock: /^\s*```json\s+(.*?)```\s*/is,
-    /** Matches ISO8601 dates */
-    isoDate: /^(\d{4}|\+\d{6})(?:-(\d{2})(?:-(\d{2})(?:T(\d{2}):(\d{2}):(\d{2})(?:\.{0,1})(\d{0,})(Z|([\-+])(\d{2})(?::{0,1})(\d{2}))?)?)?)?/,
-    /** Matches markdown h1 level title */
-    title: /^#\s+(.*)$/m,
-    /** Matches HTML code blocks and extracts content and language */
-    code: /<code class="(.*?)\s+language-\1">(.*?)<\/code>/gs,
-    /** Matches HTML comment blocks */
-    htmlComment: /<!--.*?-->\s*/gs
-};
-
+/** Path to the "gen" folder */
 const genRoot = path.dirname(path.dirname(process.argv[1]));
 
 /** Global parameters that are passed into every relevant function */
 const globalParams = getGlobalParams();
 
-const files = fs.globSync(globalParams.dirs.source + path.sep + "*.md");
-const render = renderFiles(files, globalParams);
+/** Render result of individual markdown files */
+const render = renderFiles(globalParams);
 
+/** Result of generating the menu from a previous render */
 const menu = renderMenu(render.map(v => v.menuItem), globalParams);
 fs.writeFileSync(path.join(globalParams.dirs.dest, globalParams.outFiles.menu), menu);
 
 if (globalParams.config.rss.enabled) {
+    /** RSS feed XML data */
     const feed = renderFeed(render.map(v => v.menuItem), globalParams);
     fs.writeFileSync(path.join(globalParams.dirs.dest, globalParams.outFiles.feed), feed);
 }
@@ -239,11 +166,15 @@ function updateMenu(data: RenderResult[]) {
 
 /**
  * Renders markdown into HTML
- * @param files Markdown file list
  * @param params Global parameters
  * @returns Processed result
  */
-function renderFiles(files: string[], params: GlobalParams): RenderResult[] {
+function renderFiles(params: GlobalParams): RenderResult[] {
+    const files = fs.globSync(globalParams.dirs.source + path.sep + "*.md");
+    if (files.length === 0) {
+        throw new Error(`docs folder "${globalParams.dirs.source}" does not contain any markdown files`);
+    }
+
     const md2html = new showdown.Converter();
     const ret = [] as RenderResult[];
     for (let file of files) {
@@ -338,6 +269,11 @@ function shortIsoDate(dt: Date) {
     return dt.toISOString().replace(/\.\d+/, "");
 }
 
+/**
+ * Removes all comments from an HTML string
+ * @param html Raw HTML
+ * @returns HTML without comments
+ */
 function stripComments(html: string) {
     return html.replaceAll(regexes.htmlComment, "");
 }
