@@ -4,8 +4,8 @@
     <rights>© 2026 {AUTHOR.NAME}</rights>
     <title>ADHD Ramblings</title>
     <subtitle>A minimal effort blog</subtitle>
-    <link href="https://blog.ayra.ch/feed.rss" rel="self" />
-    <link href="https://blog.ayra.ch/" />
+    <link href="{ROOT_URL}/feed.rss" rel="self" />
+    <link href="{ROOT_URL}" />
     <id>urn:uuid:75bbd562-35a0-4d82-be13-24fbba535c4c</id>
     <updated>{LASTITEM}</updated>
     <author>

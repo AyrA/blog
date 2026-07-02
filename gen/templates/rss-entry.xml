@@ -1,6 +1,6 @@
 <entry>
     <title>{TITLE}</title>
-    <link href="https://blog.ayra.ch/docs/{FILENAME}" />
+    <link href="{ROOT_URL}/docs/{FILENAME}" />
     <id>urn:int:{DATENUM}</id>
     <updated>{DATE}</updated>
     <summary>{TITLE}: {DESC}</summary>

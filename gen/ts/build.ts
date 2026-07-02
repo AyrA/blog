@@ -3,6 +3,7 @@
 type BuildConfig = {
     title: string,
     desc: string,
+    url: string,
     rss: {
         enabled: boolean,
         author: AuthorInfo
@@ -146,6 +147,7 @@ function renderFeed(menuItems: MenuItem[], params: GlobalParams) {
             .replaceAll("{DATENUM}", String(Math.floor(item.date.getTime() / 1000)))
             .replaceAll("{TITLE}", htmlEncode(item.title))
             .replaceAll("{DESC}", htmlEncode(item.description))
+            .replaceAll("{ROOT_URL}", htmlEncode(params.config.url))
             .replaceAll("{AUTHOR.NAME}", item.author.name)
             .replaceAll("{AUTHOR.URL}", item.author.url));
     }
@@ -153,7 +155,8 @@ function renderFeed(menuItems: MenuItem[], params: GlobalParams) {
         replace("{ENTRIES}", entries.join("")).
         replace("{LASTITEM}", shortIsoDate(menuItems[0].date)).
         replaceAll("{AUTHOR.NAME}", params.config.rss.author.name).
-        replaceAll("{AUTHOR.URL}", params.config.rss.author.url);
+        replaceAll("{AUTHOR.URL}", params.config.rss.author.url).
+        replaceAll("{ROOT_URL}", htmlEncode(params.config.url));
 }
 
 /**
