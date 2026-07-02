@@ -24,7 +24,7 @@ type MDParseResult = {
     raw: string,
     title: string,
     description?: string | null,
-    published: Date
+    published?: Date | null
 };
 
 import fs from "fs";
@@ -61,8 +61,15 @@ const menu = renderMenu(render.map(v => v.menuItem), params.menuTemplate);
 fs.writeFileSync(path.join(params.destDir, params.menuDest), menu);
 for (let blogItem of render) {
     fs.writeFileSync(blogItem.fullPath, blogItem.htmlCode);
+    fs.utimesSync(blogItem.fullPath, blogItem.menuItem.date, blogItem.menuItem.date);
 }
 
+/**
+ * Renders a main menu into the given template
+ * @param menuItems Menu items to render
+ * @param template Template HTML file
+ * @returns Rendered template file
+ */
 function renderMenu(menuItems: MenuItem[], template: string) {
     let ret = "<ul>";
     for (let item of menuItems) {
@@ -77,6 +84,12 @@ function renderMenu(menuItems: MenuItem[], template: string) {
     return template.replace("{LIST}", ret);
 }
 
+/**
+ * Encodes values from a template literal to be HTML safe
+ * @param template HTML template string
+ * @param params Values to HTML encode
+ * @returns HTML encoded string
+ */
 function htmlEncode(template: TemplateStringsArray, ...params: string[]): string {
     params = params.map(v => v.replaceAll(">", "&gt;").replaceAll("<", "&lt;").replaceAll("'", "&apos;").replaceAll('"', "&quot;"));
     let ret = "";
@@ -87,6 +100,10 @@ function htmlEncode(template: TemplateStringsArray, ...params: string[]): string
     return ret;
 }
 
+/**
+ * Creates the navigation links on the documents
+ * @param data Result from a call to renderFiles
+ */
 function updateMenu(data: RenderResult[]) {
     for (let i = 0; i < data.length; i++) {
         const prev = data[i - 1];
@@ -128,6 +145,9 @@ function renderFiles(files: string[]): RenderResult[] {
         console.log("processing", path.basename(file), "-->", outFileName);
 
         const md = structurizeMD(fs.readFileSync(file, "utf8"));
+        if (!md.published) {
+            md.published = fs.statSync(file).mtime;
+        }
         const html = highlightCode(md2html.makeHtml(md.raw));
         const content = params.docsTemplate
             .replace("{MD}", html) //Add Markdown
@@ -165,8 +185,8 @@ function structurizeMD(md: string): MDParseResult {
     }
     md = md.replace(regexes.configBlock, "");
     const config = JSON.parse(json[1]) as MDConfig;
-    if (!config.date || !config.date.match(regexes.isoDate)) {
-        throw new Error("Invalid or missing publish date in markdown config. Expected format is ISO 8601");
+    if (!config.date || (config.date !== "auto" && !config.date.match(regexes.isoDate))) {
+        throw new Error("Invalid or missing publish date in markdown config. Expected format is ISO 8601 or the string 'auto'");
     }
     if (!config.title) {
         const title = md.match(regexes.title);
@@ -177,7 +197,7 @@ function structurizeMD(md: string): MDParseResult {
     }
     return {
         raw: md,
-        published: new Date(config.date),
+        published: config.date === "auto" ? null : new Date(config.date),
         title: config.title,
         description: config.desc
     };
