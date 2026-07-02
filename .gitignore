@@ -5,3 +5,4 @@ files
 gen/js
 gen/config.json5
 deploy.bat
+static/favicon.ico
