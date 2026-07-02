@@ -3,7 +3,10 @@ SETLOCAL
 PUSHD "%~dp0"
 
 REM Build typescript
-CALL tsc -p gen
+PUSHD gen
+IF NOT EXIST node_modules CALL npm ci
+CALL tsc
+POPD
 
 REM Reset out dir
 RD /S /Q dist
