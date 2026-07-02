@@ -1,0 +1,22 @@
+//Fill out the field values below, and then remove the ".dist" file extension to activate it
+{
+  //A short title of your blog
+  title: "",
+  //A more or less detailed description of what to expect
+  desc: "",
+  //Main url of this blog without trailing slash.
+  //Right now this is used mostly in URLs within the RSS feed
+  url: "",
+  rss: {
+    //Whether to generate an RSS feed file or not
+    enabled: true,
+    //Author information. This is also used in a few places in the generated HTML,
+    //so fill it out even if you don't use RSS
+    author: {
+      //Name of the author
+      name: "",
+      //Url of the personal website of the author. Not necessary the same URL as this blog
+      url: "",
+    },
+  },
+}
