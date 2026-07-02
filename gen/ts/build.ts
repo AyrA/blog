@@ -1,5 +1,19 @@
 "use strict";
 
+type BuildConfig = {
+    title: string,
+    desc: string,
+    rss: {
+        enabled: boolean,
+        author: AuthorInfo
+    }
+}
+
+type AuthorInfo = {
+    name: string,
+    url: string
+};
+
 type MenuItem = {
     title: string,
     description: string,
@@ -17,7 +31,8 @@ type MDConfig = {
     title?: string | null,
     desc?: string | null,
     date?: string | null,
-    tags?: string[] | null
+    tags?: string[] | null,
+    author?: AuthorInfo | null
 };
 
 type MDParseResult = {
@@ -27,68 +42,119 @@ type MDParseResult = {
     published?: Date | null
 };
 
+type GlobalParams = {
+    config: BuildConfig,
+    dirs: {
+        source: string,
+        dest: string
+    },
+    templates: {
+        docs: string,
+        menu: string,
+        feed: string,
+        feedEntry: string
+    },
+    outFiles: {
+        menu: string,
+        feed: string
+    }
+};
+
 import fs from "fs";
 import path from "path";
 import showdown from "showdown";
 import hljs from 'highlight.js';
-
-const md2html = new showdown.Converter();
-const regexes = {
-    configBlock: /^\s*```json\s+(.*?)```\s*/is,
-    isoDate: /^(\d{4}|\+\d{6})(?:-(\d{2})(?:-(\d{2})(?:T(\d{2}):(\d{2}):(\d{2})(?:\.{0,1})(\d{0,})(Z|([\-+])(\d{2})(?::{0,1})(\d{2}))?)?)?)?/,
-    title: /^#\s+(.*)$/m,
-    code: /<code class="(.*?)\s+language-\1">(.*?)<\/code>/gs
-};
+import json5 from 'json5';
 
 if (process.argv.length !== 4) {
     console.error("node build.js <source-dir> <out-dir>");
     process.exit(1);
 }
 
-const genRoot = path.dirname(path.dirname(process.argv[1]));
-
-const params = {
-    sourceDir: fs.realpathSync(path.normalize(path.join(process.cwd(), process.argv[2]))),
-    destDir: fs.realpathSync(path.normalize(path.join(process.cwd(), process.argv[3]))),
-    docsTemplate: fs.readFileSync(path.join(genRoot, "template.html"), "utf8"),
-    menuTemplate: fs.readFileSync(path.join(genRoot, "menu.html"), "utf8"),
-    feedTemplate: fs.readFileSync(path.join(genRoot, "rss.xml"), "utf8"),
-    feedEntryTemplate: fs.readFileSync(path.join(genRoot, "rss-entry.xml"), "utf8"),
-    menuDest: "index.html",
-    feedDest: "feed.xml"
+/** Regular expressions used throughout this file */
+const regexes = {
+    /** The config block from a markdown file */
+    configBlock: /^\s*```json\s+(.*?)```\s*/is,
+    /** Matches ISO8601 dates */
+    isoDate: /^(\d{4}|\+\d{6})(?:-(\d{2})(?:-(\d{2})(?:T(\d{2}):(\d{2}):(\d{2})(?:\.{0,1})(\d{0,})(Z|([\-+])(\d{2})(?::{0,1})(\d{2}))?)?)?)?/,
+    /** Matches markdown h1 level title */
+    title: /^#\s+(.*)$/m,
+    /** Matches HTML code blocks and extracts content and language */
+    code: /<code class="(.*?)\s+language-\1">(.*?)<\/code>/gs,
+    /** Matches HTML comment blocks */
+    htmlComment: /<!--.*?-->\s*/gs
 };
 
-const files = fs.globSync(params.sourceDir + path.sep + "*.md");
-const render = renderFiles(files);
-const menu = renderMenu(render.map(v => v.menuItem), params.menuTemplate);
-const feed = renderFeed(render.map(v => v.menuItem), params.feedTemplate, params.feedEntryTemplate);
-fs.writeFileSync(path.join(params.destDir, params.menuDest), menu);
-fs.writeFileSync(path.join(params.destDir, params.feedDest), feed);
+const genRoot = path.dirname(path.dirname(process.argv[1]));
+
+/** Global parameters that are passed into every relevant function */
+const globalParams = getGlobalParams();
+
+const files = fs.globSync(globalParams.dirs.source + path.sep + "*.md");
+const render = renderFiles(files, globalParams);
+
+const menu = renderMenu(render.map(v => v.menuItem), globalParams);
+fs.writeFileSync(path.join(globalParams.dirs.dest, globalParams.outFiles.menu), menu);
+
+if (globalParams.config.rss.enabled) {
+    const feed = renderFeed(render.map(v => v.menuItem), globalParams);
+    fs.writeFileSync(path.join(globalParams.dirs.dest, globalParams.outFiles.feed), feed);
+}
 for (let blogItem of render) {
     fs.writeFileSync(blogItem.fullPath, blogItem.htmlCode);
     fs.utimesSync(blogItem.fullPath, blogItem.menuItem.date, blogItem.menuItem.date);
 }
 
-function renderFeed(menuItems: MenuItem[], template: string, entryTemplate: string) {
+function getGlobalParams(): GlobalParams {
+    const config = json5.parse(fs.readFileSync(path.join(genRoot, "config.json5"), "utf8")) as BuildConfig;
+
+    /** Global parameters that are passed into every relevant function */
+    const params = {
+        config: config,
+        dirs: {
+            source: fs.realpathSync(path.normalize(path.join(process.cwd(), process.argv[2]))),
+            dest: fs.realpathSync(path.normalize(path.join(process.cwd(), process.argv[3])))
+        },
+        templates: {
+            docs: fs.readFileSync(path.join(genRoot, "templates", "blogentry.html"), "utf8"),
+            menu: fs.readFileSync(path.join(genRoot, "templates", "menu.html"), "utf8"),
+            feed: config.rss.enabled ? fs.readFileSync(path.join(genRoot, "templates", "rss.xml"), "utf8") : "",
+            feedEntry: config.rss.enabled ? fs.readFileSync(path.join(genRoot, "templates", "rss-entry.xml"), "utf8") : "",
+        },
+        outFiles: {
+            menu: "index.html",
+            feed: "feed.xml"
+        }
+    } as GlobalParams;
+    return params;
+}
+
+/**
+ * Generates RSS feed XML for the given menu items
+ * @param menuItems Menu items to add to RSS feed
+ * @param params Global params
+ * @returns RSS feed XML
+ */
+function renderFeed(menuItems: MenuItem[], params: GlobalParams) {
     const entries = [] as string[];
     for (let item of menuItems) {
-        entries.push(entryTemplate
+        entries.push(params.templates.feedEntry
             .replaceAll("{FILENAME}", htmlEncode(path.basename(item.file)))
             .replaceAll("{DATE}", htmlEncode(shortIsoDate(item.date)))
             .replaceAll("{DATENUM}", String(Math.floor(item.date.getTime() / 1000)))
             .replaceAll("{TITLE}", htmlEncode(item.title))
             .replaceAll("{DESC}", htmlEncode(item.description)));
     }
-    return template.replace("{ENTRIES}", entries.join("")).replace("{LASTITEM}", shortIsoDate(menuItems[0].date));
+    return params.templates.feed.replace("{ENTRIES}", entries.join("")).replace("{LASTITEM}", shortIsoDate(menuItems[0].date));
 }
 
 /**
  * Renders a main menu into the given template
  * @param menuItems Menu items to render
- * @param template Template HTML file
+ * @param params Global params
  * @returns Rendered template file
  */
-function renderMenu(menuItems: MenuItem[], template: string) {
+function renderMenu(menuItems: MenuItem[], params: GlobalParams) {
     let ret = "<ul>";
     for (let item of menuItems) {
         ret += htmlEncode
@@ -99,7 +165,12 @@ function renderMenu(menuItems: MenuItem[], template: string) {
 </li>`;
     }
     ret += "</ul>"
-    return template.replace("{LIST}", ret);
+    ret = params.templates.menu
+        .replaceAll("{TITLE}", htmlEncode(params.config.title))
+        .replaceAll("{DESC}", htmlEncode(params.config.desc))
+        .replace("{LIST}", ret)
+        .replace("{FEED}", params.config.rss.enabled ? htmlEncode`<link href="./feed.xml" type="application/atom+xml" rel="alternate" title="${params.config.title}" />` : "");
+    return stripComments(ret);
 }
 
 /**
@@ -156,29 +227,30 @@ function updateMenu(data: RenderResult[]) {
 /**
  * Renders markdown into HTML
  * @param files Markdown file list
+ * @param params Global parameters
  * @returns Processed result
  */
-function renderFiles(files: string[]): RenderResult[] {
+function renderFiles(files: string[], params: GlobalParams): RenderResult[] {
+    const md2html = new showdown.Converter();
     const ret = [] as RenderResult[];
     for (let file of files) {
         const outFileName = path.basename(file, ".md") + ".html";
-        const outFullName = path.join(params.destDir, "docs", outFileName);
+        const outFullName = path.join(params.dirs.dest, "docs", outFileName);
         console.log("processing", path.basename(file), "-->", outFileName);
 
-        const md = structurizeMD(fs.readFileSync(file, "utf8"));
+        const md = structurizeMD(fs.readFileSync(file, "utf8"), params);
         if (!md.published) {
             md.published = fs.statSync(file).mtime;
         }
         const html = highlightCode(md2html.makeHtml(md.raw));
-        const content = params.docsTemplate
+        const content = params.templates.docs
             .replace("{MD}", html) //Add Markdown
             .replace("{TITLE}", md.title) //Set title
             .replace("{DATE}", md.published.toISOString().split('T')[0]) //Set date
-            .replace("{DATEFULL}", shortIsoDate(md.published)) //Set date
-            .replace(/<!--.*?-->\s*/gs, ""); //Remove comments
+            .replace("{DATEFULL}", shortIsoDate(md.published)); //Set date
         ret.push({
             fullPath: outFullName,
-            htmlCode: content,
+            htmlCode: stripComments(content),
             menuItem: {
                 date: md.published,
                 title: md.title,
@@ -197,15 +269,16 @@ function renderFiles(files: string[]): RenderResult[] {
 /**
  * Extracts the metadata block from markdown, validates it, and returns the result
  * @param md Markdown code
+ * @param params Global parameters
  * @returns Markdown with metadata
  */
-function structurizeMD(md: string): MDParseResult {
+function structurizeMD(md: string, params: GlobalParams): MDParseResult {
     const json = md.match(regexes.configBlock);
     if (!json) {
         throw new Error("Markdown has no json config block");
     }
     md = md.replace(regexes.configBlock, "");
-    const config = JSON.parse(json[1]) as MDConfig;
+    const config = json5.parse(json[1]) as MDConfig;
     if (!config.date || (config.date !== "auto" && !config.date.match(regexes.isoDate))) {
         throw new Error("Invalid or missing publish date in markdown config. Expected format is ISO 8601 or the string 'auto'");
     }
@@ -216,6 +289,7 @@ function structurizeMD(md: string): MDParseResult {
         }
         config.title = title[1];
     }
+    config.author ??= params.config.rss.author;
     return {
         raw: md,
         published: config.date === "auto" ? null : new Date(config.date),
@@ -245,4 +319,8 @@ function highlightCode(html: string) {
  */
 function shortIsoDate(dt: Date) {
     return dt.toISOString().replace(/\.\d+/, "");
+}
+
+function stripComments(html: string) {
+    return html.replaceAll(regexes.htmlComment, "");
 }
