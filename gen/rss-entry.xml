@@ -1,0 +1,17 @@
+<entry>
+    <title>{TITLE}</title>
+    <link href="https://blog.ayra.ch/docs/{FILENAME}" />
+    <id>urn:int:{DATENUM}</id>
+    <updated>{DATE}</updated>
+    <summary>{TITLE}: {DESC}</summary>
+    <content type="html">
+        <div>
+            <h1>{TITLE}</h1>
+            <p>{DESC}</p>
+        </div>
+    </content>
+    <author>
+        <name>ayra.ch</name>
+        <uri>https://blog.ayra.ch/</uri>
+    </author>
+</entry>

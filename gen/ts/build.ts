@@ -52,16 +52,34 @@ const params = {
     destDir: fs.realpathSync(path.normalize(path.join(process.cwd(), process.argv[3]))),
     docsTemplate: fs.readFileSync(path.join(genRoot, "template.html"), "utf8"),
     menuTemplate: fs.readFileSync(path.join(genRoot, "menu.html"), "utf8"),
-    menuDest: "index.html"
+    feedTemplate: fs.readFileSync(path.join(genRoot, "rss.xml"), "utf8"),
+    feedEntryTemplate: fs.readFileSync(path.join(genRoot, "rss-entry.xml"), "utf8"),
+    menuDest: "index.html",
+    feedDest: "feed.xml"
 };
 
 const files = fs.globSync(params.sourceDir + path.sep + "*.md");
 const render = renderFiles(files);
 const menu = renderMenu(render.map(v => v.menuItem), params.menuTemplate);
+const feed = renderFeed(render.map(v => v.menuItem), params.feedTemplate, params.feedEntryTemplate);
 fs.writeFileSync(path.join(params.destDir, params.menuDest), menu);
+fs.writeFileSync(path.join(params.destDir, params.feedDest), feed);
 for (let blogItem of render) {
     fs.writeFileSync(blogItem.fullPath, blogItem.htmlCode);
     fs.utimesSync(blogItem.fullPath, blogItem.menuItem.date, blogItem.menuItem.date);
+}
+
+function renderFeed(menuItems: MenuItem[], template: string, entryTemplate: string) {
+    const entries = [] as string[];
+    for (let item of menuItems) {
+        entries.push(entryTemplate
+            .replaceAll("{FILENAME}", htmlEncode(path.basename(item.file)))
+            .replaceAll("{DATE}", htmlEncode(shortIsoDate(item.date)))
+            .replaceAll("{DATENUM}", String(Math.floor(item.date.getTime() / 1000)))
+            .replaceAll("{TITLE}", htmlEncode(item.title))
+            .replaceAll("{DESC}", htmlEncode(item.description)));
+    }
+    return template.replace("{ENTRIES}", entries.join("")).replace("{LASTITEM}", shortIsoDate(menuItems[0].date));
 }
 
 /**
@@ -75,7 +93,7 @@ function renderMenu(menuItems: MenuItem[], template: string) {
     for (let item of menuItems) {
         ret += htmlEncode
             `<li>
-    <time datetime="${item.date.toISOString()}">${item.date.toISOString().split('T')[0]}</time>
+    <time datetime="${shortIsoDate(item.date)}">${item.date.toISOString().split('T')[0]}</time>
     <a href="docs/${item.file}"><b>${item.title}</b></a><br />
     <i>${item.description}</i>
 </li>`;
@@ -90,11 +108,14 @@ function renderMenu(menuItems: MenuItem[], template: string) {
  * @param params Values to HTML encode
  * @returns HTML encoded string
  */
-function htmlEncode(template: TemplateStringsArray, ...params: string[]): string {
-    params = params.map(v => v.replaceAll(">", "&gt;").replaceAll("<", "&lt;").replaceAll("'", "&apos;").replaceAll('"', "&quot;"));
+function htmlEncode(template: TemplateStringsArray | string, ...params: string[]): string {
+    const encode = (v: string) => v.replaceAll(">", "&gt;").replaceAll("<", "&lt;").replaceAll("'", "&apos;").replaceAll('"', "&quot;");
+    if (typeof (template) === "string") {
+        return encode(template);
+    }
     let ret = "";
     for (let i = 0; i < params.length; i++) {
-        ret += template[i] + params[i];
+        ret += template[i] + encode(params[i]);
     }
     ret += template[params.length];
     return ret;
@@ -153,8 +174,8 @@ function renderFiles(files: string[]): RenderResult[] {
             .replace("{MD}", html) //Add Markdown
             .replace("{TITLE}", md.title) //Set title
             .replace("{DATE}", md.published.toISOString().split('T')[0]) //Set date
-            .replace("{DATEFULL}", md.published.toISOString()) //Set date
-            .replace(/<!--.*-->\s*/g, ""); //Remove comments
+            .replace("{DATEFULL}", shortIsoDate(md.published)) //Set date
+            .replace(/<!--.*?-->\s*/gs, ""); //Remove comments
         ret.push({
             fullPath: outFullName,
             htmlCode: content,
@@ -215,4 +236,13 @@ function highlightCode(html: string) {
         }
         return hljs.highlight(code, { language: lang }).value;
     });
+}
+
+/**
+ * Renders a date item as ISO 8601 date string without milliseconds
+ * @param dt Date instance
+ * @returns ISO 8601 date string without millisecond component
+ */
+function shortIsoDate(dt: Date) {
+    return dt.toISOString().replace(/\.\d+/, "");
 }
