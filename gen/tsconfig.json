@@ -1,0 +1,14 @@
+{
+    "compileOnSave": true,
+    "compilerOptions": {
+        "target": "esnext",
+        "module": "node20",
+        "noEmitOnError": true,
+        "strict": true,
+        "rootDir": "./ts",
+        "outDir": "./js",
+        "types": [
+            "node"
+        ]
+    }
+}
