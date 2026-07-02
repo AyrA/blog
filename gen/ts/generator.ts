@@ -37,9 +37,12 @@ export function getGlobalParams(): GlobalParams {
  * Generates RSS feed XML for the given menu items
  * @param menuItems Menu items to add to RSS feed
  * @param params Global params
- * @returns RSS feed XML
+ * @returns RSS feed XML, or null if feed generation is disabled
  */
-export function renderFeed(menuItems: MenuItem[], params: GlobalParams) {
+export function renderFeed(menuItems: MenuItem[], params: GlobalParams): string | null {
+    if (!params.config.rss.enabled) {
+        return null;
+    }
     const entries = [] as string[];
     for (let item of menuItems) {
         entries.push(params.templates.feedEntry
