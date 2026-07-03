@@ -4,6 +4,7 @@ import showdown from "showdown";
 import hljs from 'highlight.js';
 import json5 from 'json5';
 import regexes from "./regexes";
+import { decode } from 'html-entities';
 
 /** Path to the "gen" folder */
 const genRoot = path.dirname(path.dirname(process.argv[1]));
@@ -152,7 +153,9 @@ export function renderFiles(params: GlobalParams): RenderResult[] {
         throw new Error(`docs folder "${params.dirs.source}" does not contain any markdown files`);
     }
 
-    const md2html = new showdown.Converter();
+    const md2html = new showdown.Converter({
+        openLinksInNewWindow: true,
+    });
     const ret = [] as RenderResult[];
     for (let file of files) {
         const outFileName = path.basename(file, ".md") + ".html";
@@ -233,7 +236,7 @@ function highlightCode(html: string) {
         if (lang === "mermaid") {
             return value;
         }
-        return hljs.highlight(code, { language: lang }).value;
+        return hljs.highlight(decode(code), { language: lang }).value;
     });
 }
 

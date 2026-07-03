@@ -5,6 +5,7 @@
   },
   "dependencies": {
     "highlight.js": "^11.11.1",
+    "html-entities": "^2.6.0",
     "json5": "^2.2.3",
     "showdown": "^2.1.0"
   }
